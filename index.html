@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Padman Combo Caller</title>
+<meta name="description" content="Muay Thai combos called out loud while you work the bag or shadowbox alone.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#eef0f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1422" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Padman">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen. Setup is a quiet form; training floods the whole screen with the corner colour (red = work, blue = rest) so it reads from across the gym. */
+:root{
+  --bg:#eef0f4; --surface:#ffffff; --fg:#141a2b; --muted:#5b6478; --line:#d3d8e2;
+  --red:#c8202f; --blue:#1d3f8f; --gold:#b98512; --on-phase:#ffffff;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1422; --surface:#1a2136; --fg:#eef1f8; --muted:#9aa4bd; --line:#2d3650;
+    --red:#d42a3a; --blue:#2450b4; --gold:#e0a82e; --on-phase:#ffffff; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1422; --surface:#1a2136; --fg:#eef1f8; --muted:#9aa4bd; --line:#2d3650;
+  --red:#d42a3a; --blue:#2450b4; --gold:#e0a82e; --on-phase:#ffffff; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+html{-webkit-text-size-adjust:100%;overscroll-behavior:none}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.4;transition:background .3s;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+body[data-phase="round"]{background:var(--red);color:var(--on-phase)}
+body[data-phase="rest"]{background:var(--blue);color:var(--on-phase)}
+@media (prefers-reduced-motion: reduce){body{transition:none}}
+.wrap{max-width:480px;min-height:100%;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible+span{outline:3px solid var(--gold);outline-offset:2px}
+
+/* setup */
+h1{font-family:var(--display);font-weight:800;font-size:44px;line-height:.95;margin:0;text-transform:uppercase;letter-spacing:.01em}
+h1 em{font-style:normal;color:var(--red)}
+.lede{margin:6px 0 0;color:var(--muted)}
+.label{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.levels input{position:absolute;opacity:0;pointer-events:none}
+.levels span{display:block;text-align:center;padding:14px 4px;border:2px solid var(--line);border-radius:6px;background:var(--surface);font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.03em;cursor:pointer}
+.levels input:checked+span{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.leveldesc{margin:10px 0 0;color:var(--muted);font-size:15px;min-height:3em}
+.leveldesc b{color:var(--fg);font-weight:600}
+.rows{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row .name{font-weight:500}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:48px;height:48px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-size:26px;line-height:1;font-weight:500}
+.stepper button:active{background:var(--line)}
+.stepper output{min-width:74px;text-align:center;font-family:var(--display);font-weight:800;font-size:34px;font-variant-numeric:tabular-nums}
+.total{color:var(--muted);font-size:15px;margin:0}
+.total b{color:var(--fg);font-variant-numeric:tabular-nums}
+.go{margin-top:auto;border:0;border-radius:6px;background:var(--red);color:var(--on-phase);font-family:var(--display);font-weight:800;font-size:30px;text-transform:uppercase;letter-spacing:.05em;padding:18px}
+.go:active{filter:brightness(.9)}
+.note{font-size:13px;color:var(--muted);margin:0;text-align:center}
+.warn{color:var(--red);font-weight:600}
+
+.favs{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.fav{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.fav span{min-width:0;font-weight:500}
+.fav button{flex:none;width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-size:20px;line-height:1}
+.empty{color:var(--muted);font-size:15px;margin:0;padding:10px 0;border-bottom:1px solid var(--line)}
+.ghost{margin-top:10px;width:100%;border:2px dashed var(--line);background:transparent;border-radius:6px;padding:13px;font-weight:600}
+.builder{margin-top:10px;display:flex;flex-direction:column;gap:12px;padding:14px;border:2px solid var(--fg);border-radius:6px;background:var(--surface)}
+.seq{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.1;text-transform:uppercase;min-height:1.1em;margin:0;overflow-wrap:anywhere}
+.seq.blank{font-family:var(--body);font-weight:400;font-size:15px;text-transform:none;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:9px 12px;font-size:14px;font-weight:500}
+.chips button:active{background:var(--line)}
+.bact{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px}
+.bact button{border:2px solid var(--line);background:transparent;border-radius:6px;padding:12px 6px;font-weight:600}
+.bact .save{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.bact button:disabled{opacity:.4}
+
+/* training */
+#train{flex:1;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.phase{font-family:var(--display);font-weight:800;font-size:30px;text-transform:uppercase;letter-spacing:.05em}
+.pips{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.pips i{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;opacity:.55}
+.pips i.done{background:currentColor;opacity:1}
+.pips i.now{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 30%,transparent)}
+.clock{font-family:var(--display);font-weight:800;font-size:min(42vw,200px);line-height:.85;text-align:center;font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin-top:8px}
+.clock.last{animation:pulse 1s steps(2) infinite}
+@keyframes pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion: reduce){.clock.last{animation:none}}
+.combo{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:160px;border-top:2px solid color-mix(in srgb,currentColor 35%,transparent);padding-top:14px}
+.combo div{font-family:var(--display);font-weight:800;font-size:clamp(30px,10vw,46px);line-height:1.02;text-transform:uppercase;overflow-wrap:anywhere}
+.combo .hint{font-family:var(--body);font-weight:500;font-size:18px;text-transform:none;opacity:.85}
+.ctrl{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.ctrl button{border:2px solid currentColor;background:transparent;border-radius:6px;padding:16px;font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:.05em}
+.ctrl button:active{background:color-mix(in srgb,currentColor 18%,transparent)}
+#done{flex:1;display:flex;flex-direction:column;gap:14px;justify-content:center}
+#done p{margin:0;color:var(--muted);font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <section id="setup" style="display:contents">
+    <header>
+      <h1>Pad<em>man</em></h1>
+      <p class="lede">Muay Thai combos called out loud while you work the bag or shadowbox alone.</p>
+    </header>
+
+    <div>
+      <p class="label" id="lvl-label">Level</p>
+      <div class="levels" role="radiogroup" aria-labelledby="lvl-label">
+        <label><input type="radio" name="level" id="lvl-beginner" value="beginner"><span>Beginner</span></label>
+        <label><input type="radio" name="level" id="lvl-intermediate" value="intermediate"><span>Inter</span></label>
+        <label><input type="radio" name="level" id="lvl-pro" value="pro"><span>Pro</span></label>
+      </div>
+      <p class="leveldesc" id="leveldesc"></p>
+    </div>
+
+    <div>
+      <p class="label">Rounds</p>
+      <div class="rows">
+        <div class="row"><span class="name">Number of rounds</span>
+          <div class="stepper"><button type="button" id="rounds-minus" aria-label="Fewer rounds">−</button><output id="rounds-out"></output><button type="button" id="rounds-plus" aria-label="More rounds">+</button></div></div>
+        <div class="row"><span class="name">Round length</span>
+          <div class="stepper"><button type="button" id="work-minus" aria-label="Shorter rounds">−</button><output id="work-out"></output><button type="button" id="work-plus" aria-label="Longer rounds">+</button></div></div>
+        <div class="row"><span class="name">Rest between rounds</span>
+          <div class="stepper"><button type="button" id="rest-minus" aria-label="Less rest">−</button><output id="rest-out"></output><button type="button" id="rest-plus" aria-label="More rest">+</button></div></div>
+        <div class="row"><span class="name">Voice speed</span>
+          <div class="stepper"><button type="button" id="speed-minus" aria-label="Slower voice">−</button><output id="speed-out"></output><button type="button" id="speed-plus" aria-label="Faster voice">+</button></div></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="label">My combos</p>
+      <div class="favs" id="favs"></div>
+      <button type="button" class="ghost" id="fav-add">+ Add a combo</button>
+      <div class="builder" id="builder" hidden>
+        <p class="seq blank" id="seq"></p>
+        <div class="chips" id="chips"></div>
+        <div class="bact"><button type="button" id="b-undo">Undo</button><button type="button" id="b-cancel">Cancel</button><button type="button" class="save" id="b-save">Save combo</button></div>
+      </div>
+    </div>
+
+    <p class="total" id="total"></p>
+    <button type="button" class="go" id="start">Start training</button>
+    <p class="note" id="note">Turn your volume up and switch off silent mode. You get 10 seconds to get in stance.</p>
+  </section>
+
+  <section id="train" hidden>
+    <div class="top"><div class="phase" id="phase"></div><div class="pips" id="pips"></div></div>
+    <div class="clock" id="clock">0:00</div>
+    <div class="combo" id="combo" aria-live="off"></div>
+    <div class="ctrl"><button type="button" id="pause">Pause</button><button type="button" id="end">End</button></div>
+  </section>
+
+  <section id="done" hidden>
+    <h1>Session <em>done</em></h1>
+    <p id="summary"></p>
+    <button type="button" class="go" id="again" style="margin-top:20px">New session</button>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var LEVELS={
+  beginner:{name:"Beginner",base:3.5,per:0.8,
+    desc:"Short combos of 1 to 3 basic strikes, with plenty of time between calls.",
+    combos:[
+      ["Jab"],["Jab","Cross"],["Jab","Cross","Lead hook"],["Cross","Lead hook"],["Double jab","Cross"],
+      ["Jab","Rear kick"],["Lead teep"],["Rear teep"],["Jab","Cross","Rear kick"],["Jab","Lead teep"],
+      ["Rear knee"],["Jab","Cross","Rear knee"],["Lead hook","Rear kick"],["Jab","Rear low kick"],
+      ["Rear middle kick"],["Lead teep","Cross"],["Switch kick"],["Jab","Cross","Switch kick"],
+      ["Check","Rear kick"],["Cross","Lead hook","Rear low kick"],["Jab","Rear elbow"],["Lead teep","Rear kick"]
+    ]},
+  intermediate:{name:"Intermediate",base:3,per:0.7,
+    desc:"3 to 5 strikes mixing punches, kicks, knees and elbows, plus checks and lean-backs.",
+    combos:[
+      ["Jab","Cross","Lead hook","Rear low kick"],["Jab","Cross","Switch kick"],["Jab","Cross","Lead hook","Rear knee"],
+      ["Lead teep","Cross","Lead hook","Rear kick"],["Jab","Rear uppercut","Lead hook","Rear low kick"],
+      ["Double jab","Cross","Switch knee"],["Jab","Cross","Lead elbow","Rear knee"],["Lead hook","Cross","Switch kick"],
+      ["Check","Cross","Lead hook","Rear low kick"],["Jab","Rear middle kick","Cross","Lead hook"],
+      ["Cross","Lead hook","Rear elbow"],["Rear teep","Jab","Cross","Switch kick"],
+      ["Lead uppercut","Cross","Lead hook","Rear knee"],["Lean back","Rear kick","Cross"],
+      ["Jab","Cross","Clinch","Knee","Knee"],["Jab","Cross","Slip","Cross","Lead hook"],
+      ["Jab","Lead teep","Rear kick"],["Cross","Lead hook","Cross","Switch kick"],
+      ["Jab","Rear elbow","Rear knee"],["Rear low kick","Cross","Lead hook"],
+      ["Jab","Cross","Lead hook to the body","Rear low kick"],["Check","Rear kick","Cross","Lead hook"]
+    ]},
+  pro:{name:"Pro",base:2.5,per:0.6,
+    desc:"Long chains of 5 to 8 strikes with fakes, clinch work and spinning techniques, at a fast pace.",
+    combos:[
+      ["Jab","Cross","Lead hook","Rear uppercut","Lead hook","Rear low kick"],
+      ["Fake teep","Superman punch","Lead hook","Rear kick"],
+      ["Jab","Cross","Lead elbow","Rear elbow","Rear knee"],
+      ["Switch kick","Cross","Lead hook","Rear low kick","Lead teep"],
+      ["Jab","Rear uppercut","Lead hook","Spinning back elbow"],
+      ["Check","Rear kick","Cross","Lead hook","Switch knee"],
+      ["Double jab","Cross","Lead hook to the body","Lead hook to the head","Rear low kick"],
+      ["Lead teep","Rear kick","Cross","Lead hook","Rear elbow"],
+      ["Jab","Cross","Slip","Cross","Lead hook","Rear knee","Rear elbow"],
+      ["Parry","Cross","Lead hook","Rear middle kick","Lead teep"],
+      ["Fake jab","Rear low kick","Cross","Lead hook","Switch kick"],
+      ["Lean back","Rear kick","Cross","Lead elbow","Rear knee"],
+      ["Jab","Cross","Clinch","Knee","Knee","Rear elbow","Push","Rear kick"],
+      ["Lead hook","Rear low kick","Cross","Switch kick","Cross"],
+      ["Rear teep","Superman punch","Lead hook","Rear low kick"],
+      ["Double rear kick","Cross","Lead hook","Rear knee"],
+      ["Jab","Cross","Lead hook","Roll","Lead hook","Cross","Rear kick"],
+      ["Jab","Cross","Step in","Flying knee"],
+      ["Jab","Cross","Lead hook","Question mark kick"],
+      ["Cross","Lead uppercut","Cross","Switch kick","Rear teep"],
+      ["Jab","Rear elbow","Lead upward elbow","Clinch","Knee","Knee"],
+      ["Rear low kick","Fake low kick","Rear high kick","Cross","Lead hook"]
+    ]}
+};
+var STRIKES=["Jab","Double jab","Cross","Lead hook","Rear hook","Lead uppercut","Rear uppercut","Superman punch",
+  "Lead elbow","Rear elbow","Spinning back elbow","Lead teep","Rear teep","Rear low kick","Rear middle kick","Rear high kick","Switch low kick","Switch middle kick","Switch high kick",
+  "Rear knee","Switch knee","Flying knee","Clinch","Knee","Check","Parry","Slip","Roll","Lean back"];
+var PREP=10;
+var cfg={level:"beginner",rounds:5,work:180,rest:60,speed:1.7};
+var favs=[];
+try{var s=JSON.parse(localStorage.getItem("padman")||"null");if(s&&LEVELS[s.level]){cfg.level=s.level;cfg.rounds=clamp(+s.rounds||5,1,12);cfg.work=clamp(+s.work||180,60,300);cfg.rest=clamp(+s.rest||60,15,180);cfg.speed=clamp(+s.speed||1.7,0.8,2.6);if(!s.v2&&cfg.speed<1.7)cfg.speed=1.7;}}catch(e){}
+try{var f=JSON.parse(localStorage.getItem("padman-favs")||"[]");var OLD={"Rear kick":"Rear middle kick","Switch kick":"Switch middle kick","Rear body kick":"Rear middle kick","Rear head kick":"Rear high kick"};if(Array.isArray(f))favs=f.map(function(c){return Array.isArray(c)?c.map(function(x){return OLD[x]||x;}):c;}).filter(function(c){return Array.isArray(c)&&c.length&&c.every(function(x){return STRIKES.indexOf(x)>=0;});}).slice(0,30);}catch(e){}
+function saveFavs(){try{localStorage.setItem("padman-favs",JSON.stringify(favs));}catch(e){}}
+function save(){try{cfg.v2=1;localStorage.setItem("padman",JSON.stringify(cfg));}catch(e){}}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function $(id){return document.getElementById(id);}
+function fmt(sec){sec=Math.max(0,Math.ceil(sec));return Math.floor(sec/60)+":"+("0"+sec%60).slice(-2);}
+
+/* ---------- setup ---------- */
+function renderSetup(){
+  $("lvl-"+cfg.level).checked=true;
+  var L=LEVELS[cfg.level];
+  $("leveldesc").innerHTML=L.desc+" Example: <b>"+L.combos[2].join(", ")+"</b>.";
+  $("rounds-out").textContent=cfg.rounds;
+  $("work-out").textContent=fmt(cfg.work);
+  $("rest-out").textContent=fmt(cfg.rest);
+  $("speed-out").textContent=cfg.speed.toFixed(1)+"×";
+  var total=cfg.rounds*cfg.work+(cfg.rounds-1)*cfg.rest;
+  $("total").innerHTML="Total session: <b>"+fmt(total)+"</b> ("+cfg.rounds+" × "+fmt(cfg.work)+" with "+fmt(cfg.rest)+" rest)";
+}
+["beginner","intermediate","pro"].forEach(function(k){
+  $("lvl-"+k).addEventListener("change",function(){cfg.level=k;save();renderSetup();});
+});
+function step(id,key,d,min,max){
+  $(id).addEventListener("click",function(){cfg[key]=clamp(cfg[key]+d,min,max);save();renderSetup();});
+}
+step("rounds-minus","rounds",-1,1,12);step("rounds-plus","rounds",1,1,12);
+step("work-minus","work",-30,60,300);step("work-plus","work",30,60,300);
+step("rest-minus","rest",-15,15,180);step("rest-plus","rest",15,15,180);
+function speedStep(id,d){$(id).addEventListener("click",function(){
+  cfg.speed=clamp(Math.round((cfg.speed+d)*10)/10,0.8,2.6);save();renderSetup();
+  if(window.speechSynthesis)speak("Jab, cross, rear low kick.");
+});}
+speedStep("speed-minus",-0.2);speedStep("speed-plus",0.2);
+
+/* ---------- my combos ---------- */
+var draft=[];
+function renderFavs(){
+  var h="";
+  if(!favs.length)h='<p class="empty">None yet. Saved combos get mixed in with the random ones at any level.</p>';
+  favs.forEach(function(c,i){h+='<div class="fav"><span>'+c.join(", ")+'</span><button type="button" data-i="'+i+'" aria-label="Remove combo">×</button></div>';});
+  $("favs").innerHTML=h;
+}
+function renderDraft(){
+  $("seq").textContent=draft.length?draft.join(", "):"Tap strikes in order to build your combo.";
+  $("seq").classList.toggle("blank",!draft.length);
+  $("b-save").disabled=!draft.length;$("b-undo").disabled=!draft.length;
+}
+$("chips").innerHTML=STRIKES.map(function(x,i){return '<button type="button" data-s="'+i+'">'+x+"</button>";}).join("");
+$("chips").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b||draft.length>=10)return;
+  draft.push(STRIKES[+b.getAttribute("data-s")]);renderDraft();
+});
+$("favs").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b)return;
+  favs.splice(+b.getAttribute("data-i"),1);saveFavs();renderFavs();
+});
+function closeBuilder(){draft=[];$("builder").hidden=true;$("fav-add").hidden=false;}
+$("fav-add").addEventListener("click",function(){draft=[];renderDraft();$("builder").hidden=false;$("fav-add").hidden=true;});
+$("b-undo").addEventListener("click",function(){draft.pop();renderDraft();});
+$("b-cancel").addEventListener("click",closeBuilder);
+$("b-save").addEventListener("click",function(){
+  if(!draft.length)return;
+  if(favs.length<30)favs.push(draft.slice());
+  saveFavs();renderFavs();closeBuilder();
+});
+renderFavs();
+var synth=window.speechSynthesis||null;
+if(!synth){$("note").innerHTML='<span class="warn">This browser has no voice support.</span> The bell and on-screen combos still work. Try opening the link in Safari or Chrome.';}
+renderSetup();
+
+/* ---------- sound ---------- */
+var ctx=null;
+function initAudio(){
+  try{if(!ctx){var AC=window.AudioContext||window.webkitAudioContext;if(AC)ctx=new AC();}
+      if(ctx&&ctx.state==="suspended")ctx.resume();}catch(e){ctx=null;}
+}
+function bell(times){
+  if(!ctx)return;
+  for(var n=0;n<times;n++){
+    var t=ctx.currentTime+n*0.45;
+    [[1,0.5],[2,0.3],[2.76,0.22],[4.07,0.12]].forEach(function(p){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.type="sine";o.frequency.value=540*p[0];
+      g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+      o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+1.7);
+    });
+  }
+}
+function clack(){
+  if(!ctx)return;
+  for(var n=0;n<3;n++){
+    var t=ctx.currentTime+n*0.16,o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="square";o.frequency.value=900;
+    g.gain.setValueAtTime(0.25,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
+    o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.08);
+  }
+}
+var voice=null;
+function pickVoice(){
+  if(!synth)return;
+  var vs=synth.getVoices()||[];
+  voice=vs.filter(function(v){return /^en[-_]US/i.test(v.lang)&&v.localService;})[0]
+     ||vs.filter(function(v){return /^en/i.test(v.lang);})[0]||null;
+}
+if(synth){pickVoice();try{synth.addEventListener("voiceschanged",pickVoice);}catch(e){}}
+var keep=null; /* hold a reference so the utterance is not garbage-collected before it ends */
+function speak(text,onend){
+  var fired=false;
+  function fin(){if(fired)return;fired=true;clearTimeout(fb);if(onend)onend();}
+  var words=text.split(/\s+/).length;
+  var fb=setTimeout(fin,synth?words*550+2500:words*350+600);
+  if(!synth)return;
+  try{
+    synth.cancel();
+    var u=new SpeechSynthesisUtterance(text);
+    u.lang="en-US";if(voice)u.voice=voice;u.rate=cfg.speed;u.pitch=1;u.volume=1;
+    u.onend=fin;u.onerror=fin;keep=u;synth.speak(u);
+  }catch(e){}
+}
+function hush(){try{if(synth)synth.cancel();}catch(e){}}
+
+/* ---------- wake lock ---------- */
+var lock=null;
+function wake(){try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(function(l){lock=l;}).catch(function(){});}catch(e){}}
+function unwake(){try{if(lock)lock.release();}catch(e){}lock=null;}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&st.phase!=="idle"&&st.phase!=="done")wake();});
+
+/* ---------- session ---------- */
+var st={phase:"idle",round:0,endsAt:0,paused:false,left:0,warned:false,gen:0,last:-1,called:0};
+var ticker=null,comboTimer=null;
+
+function show(which){
+  $("setup").style.display=which==="setup"?"contents":"none";
+  $("train").hidden=which!=="train";
+  $("done").hidden=which!=="done";
+}
+function setPhase(p){st.phase=p;document.body.setAttribute("data-phase",p);}
+function pips(){
+  var h="";
+  for(var i=1;i<=cfg.rounds;i++){
+    var c=i<st.round||(i===st.round&&st.phase==="rest")?"done":(i===st.round&&st.phase==="round"?"now":"");
+    h+='<i class="'+c+'"></i>';
+  }
+  $("pips").innerHTML=h;
+}
+function showCombo(lines,hint){
+  var h="";
+  if(hint)h+='<div class="hint">'+hint+"</div>";
+  lines.forEach(function(l){h+="<div>"+l+"</div>";});
+  $("combo").innerHTML=h;
+}
+function begin(phase,secs){
+  st.gen++;clearTimeout(comboTimer);
+  setPhase(phase);st.endsAt=Date.now()+secs*1000;st.warned=false;st.paused=false;
+  $("pause").textContent="Pause";
+  pips();tick();
+}
+function startPrep(){
+  st.round=1;st.called=0;st.last=-1;
+  begin("prep",PREP);
+  $("phase").textContent="Get ready";
+  showCombo([LEVELS[cfg.level].name],cfg.rounds+" × "+fmt(cfg.work)+", "+fmt(cfg.rest)+" rest");
+  speak("Get ready. Round one.");
+}
+function startRound(){
+  begin("round",cfg.work);
+  $("phase").textContent="Round "+st.round+" / "+cfg.rounds;
+  showCombo(["Fight"]);
+  bell(1);
+  queueCombo(1300);
+}
+function startRest(){
+  begin("rest",cfg.rest);
+  $("phase").textContent="Rest";
+  showCombo(["Breathe"],"Round "+(st.round+1)+" of "+cfg.rounds+" is next");
+  bell(3);
+  hush();
+  setTimeout(function(){if(st.phase==="rest"&&!st.paused)speak("Rest.");},1400);
+}
+function finish(){
+  st.gen++;clearTimeout(comboTimer);clearInterval(ticker);ticker=null;
+  bell(3);hush();
+  setTimeout(function(){if(st.phase==="done")speak("Time. Training complete. Good work.");},1400);
+  setPhase("done");unwake();
+  $("summary").textContent=cfg.rounds+" rounds of "+fmt(cfg.work)+" at "+LEVELS[cfg.level].name.toLowerCase()+" level. "+st.called+" combos called.";
+  show("done");
+}
+var HEIGHTS={beginner:[0.4,0.9],intermediate:[0.35,0.75],pro:[0.3,0.65]};
+function kickHeight(){var w=HEIGHTS[cfg.level],r=Math.random();return r<w[0]?"low":r<w[1]?"middle":"high";}
+function queueCombo(ms){
+  var g=st.gen;
+  clearTimeout(comboTimer);
+  comboTimer=setTimeout(function(){if(g===st.gen)callCombo();},ms);
+}
+function callCombo(){
+  if(st.phase!=="round"||st.paused)return;
+  if(st.endsAt-Date.now()<4500)return;
+  var L=LEVELS[cfg.level],c,key,mine,tries=0;
+  do{
+    mine=favs.length>0&&Math.random()<0.35;
+    var pool=mine?favs:L.combos;
+    c=pool[Math.floor(Math.random()*pool.length)];key=c.join("|");
+  }while(key===st.last&&++tries<8);
+  st.last=key;st.called++;
+  if(!mine)c=c.map(function(x){return /(^|\s)(rear|switch) kick$/i.test(x)?x.replace(/ kick$/," "+kickHeight()+" kick"):x;});
+  var g=st.gen;
+  showCombo(c,mine?"★ Your combo":"");
+  speak(c.join(", ")+".",function(){
+    if(g!==st.gen)return;
+    queueCombo((L.base+L.per*c.length)*1000);
+  });
+}
+function tick(){
+  if(st.paused)return;
+  var left=(st.endsAt-Date.now())/1000;
+  $("clock").textContent=fmt(left);
+  $("clock").classList.toggle("last",left<=10&&st.phase!=="prep");
+  if(!st.warned&&left<=10&&left>0){
+    st.warned=true;
+    if(st.phase==="round")clack();
+    else if(st.phase==="rest")speak("Ten seconds. Round "+(st.round+1)+".");
+  }
+  if(left<=0){
+    if(st.phase==="prep")startRound();
+    else if(st.phase==="round"){if(st.round>=cfg.rounds)finish();else startRest();}
+    else if(st.phase==="rest"){st.round++;startRound();}
+  }
+}
+function reset(){
+  st.gen++;clearTimeout(comboTimer);clearInterval(ticker);ticker=null;hush();unwake();
+  setPhase("idle");st.paused=false;show("setup");renderSetup();
+}
+
+$("start").addEventListener("click",function(){
+  initAudio();pickVoice();wake();
+  show("train");
+  startPrep();
+  clearInterval(ticker);ticker=setInterval(tick,200);
+});
+$("pause").addEventListener("click",function(){
+  if(!st.paused){
+    st.paused=true;st.left=st.endsAt-Date.now();st.gen++;
+    clearTimeout(comboTimer);hush();
+    $("pause").textContent="Resume";$("clock").classList.remove("last");
+  }else{
+    initAudio();
+    st.paused=false;st.endsAt=Date.now()+st.left;
+    $("pause").textContent="Pause";
+    if(st.phase==="round")queueCombo(1200);
+    tick();
+  }
+});
+$("end").addEventListener("click",reset);
+$("again").addEventListener("click",reset);
+
+/* ---------- offline install ---------- */
+if("serviceWorker" in navigator&&location.protocol!=="file:"){
+  window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});
+}
+})();
+</script>
+</body>
+</html>
